@@ -197,6 +197,7 @@ function updateNoise() {
 
         // Generate noise
         let lastOut = 0;
+        let lastBrown = 0;  // For brown noise
         for (let i = 0; i < bufferSize; i++) {
             let white = Math.random() * 2 - 1;
             
@@ -205,9 +206,12 @@ function updateNoise() {
                 lastOut = (lastOut + (0.02 * white)) / 1.02;
                 data[i] = lastOut * 3.5;
             } else if (noiseType === 'brown') {
-                // Brown noise algorithm
-                lastOut = (lastOut + (0.02 * white)) / 1.02;
-                data[i] = lastOut * 3.5;
+                // Brown noise algorithm - proper implementation
+                // Low-pass filter with very low frequency cutoff
+                const brownNoise = lastBrown + (0.02 * white);
+                // Prevent excessive bass build-up
+                lastBrown = Math.min(Math.max(brownNoise, -1), 1);
+                data[i] = lastBrown * 3.5;
             } else {
                 // White noise
                 data[i] = white;
