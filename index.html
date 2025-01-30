@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binaural Beats Generator</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-container: #1e1e1e;
+            --bg-control: #2d2d2d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent: #4a4a4a;
+            --accent-hover: #5a5a5a;
+            --slider-track: #404040;
+            --slider-thumb: #686868;
+        }
+
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+        }
+
+        .container {
+            background-color: var(--bg-container);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: var(--text-primary);
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            display: grid;
+            gap: 30px;
+        }
+
+        .control-group {
+            display: grid;
+            gap: 20px;
+            padding: 20px;
+            background-color: var(--bg-control);
+            border-radius: 10px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--accent);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button.stop {
+            background-color: #3d2d2d;
+        }
+
+        button.stop:hover {
+            background-color: #4d3d3d;
+        }
+
+        .slider-container {
+            display: grid;
+            gap: 8px;
+        }
+
+        .slider-container label {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .slider-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Custom slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: var(--slider-track);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--slider-thumb);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: var(--accent-hover);
+        }
+
+        select {
+            padding: 10px;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        select:focus {
+            border-color: var(--accent-hover);
+        }
+
+        option {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Binaural Beats Generator</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <div class="slider-container">
+                    <label>
+                        Base Frequency (Hz)
+                        <span class="slider-value" id="baseFreqValue">200</span>
+                    </label>
+                    <input type="range" id="baseFrequency" min="100" max="500" value="200" step="1">
+                </div>
+                
+                <div class="slider-container">
+                    <label>
+                        Beat Frequency (Hz)
+                        <span class="slider-value" id="beatFreqValue">10</span>
+                    </label>
+                    <input type="range" id="beatFrequency" min="0" max="40" value="10" step="0.5">
+                </div>
+                
+                <div class="slider-container">
+                    <label>
+                        Volume
+                        <span class="slider-value" id="volumeValue">50%</span>
+                    </label>
+                    <input type="range" id="volume" min="0" max="100" value="50">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Noise Type:</label>
+                <select id="noiseType">
+                    <option value="none">None</option>
+                    <option value="white">White Noise</option>
+                    <option value="pink">Pink Noise</option>
+                    <option value="brown">Brown Noise</option>
+                </select>
+                
+                <div class="slider-container">
+                    <label>
+                        Noise Volume
+                        <span class="slider-value" id="noiseVolumeValue">0%</span>
+                    </label>
+                    <input type="range" id="noiseVolume" min="0" max="100" value="0">
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="startButton">Start</button>
+                <button id="stopButton" class="stop">Stop</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let audioContext;
+        let oscillatorLeft;
+        let oscillatorRight;
+        let gainNode;
+        let noiseNode;
+        let noiseGain;
+        let isPlaying = false;
+
+        // Initialize audio context on user interaction
+        document.getElementById('startButton').addEventListener('click', () => {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            startTone();
+        });
+
+        document.getElementById('stopButton').addEventListener('click', stopTone);
+
+        // Update displays
+        ['baseFrequency', 'beatFrequency', 'volume', 'noiseVolume'].forEach(id => {
+            const element = document.getElementById(id);
+            element.addEventListener('input', () => {
+                document.getElementById(id + 'Value').textContent = 
+                    id.includes('Volume') ? element.value + '%' : element.value + (id.includes('Freq') ? ' Hz' : '');
+                updateAudio();
+            });
+        });
+
+        // Noise type selection
+        document.getElementById('noiseType').addEventListener('change', updateAudio);
+
+        function startTone() {
+            if (isPlaying) return;
+            isPlaying = true;
+
+            // Create gain node
+            gainNode = audioContext.createGain();
+            gainNode.connect(audioContext.destination);
+            
+            // Create oscillators
+            oscillatorLeft = audioContext.createOscillator();
+            oscillatorRight = audioContext.createOscillator();
+            
+            // Create stereo panner nodes
+            const pannerLeft = audioContext.createStereoPanner();
+            const pannerRight = audioContext.createStereoPanner();
+            
+            pannerLeft.pan.value = -1;  // Left channel
+            pannerRight.pan.value = 1;   // Right channel
+            
+            // Connect nodes
+            oscillatorLeft.connect(pannerLeft);
+            oscillatorRight.connect(pannerRight);
+            pannerLeft.connect(gainNode);
+            pannerRight.connect(gainNode);
+            
+            updateAudio();
+            
+            // Start oscillators
+            oscillatorLeft.start();
+            oscillatorRight.start();
+        }
+
+        function stopTone() {
+            if (!isPlaying) return;
+            isPlaying = false;
+
+            oscillatorLeft?.stop();
+            oscillatorRight?.stop();
+            noiseNode?.stop();
+            
+            oscillatorLeft = null;
+            oscillatorRight = null;
+            noiseNode = null;
+        }
+
+        function updateAudio() {
+            if (!isPlaying) return;
+
+            const baseFreq = parseFloat(document.getElementById('baseFrequency').value);
+            const beatFreq = parseFloat(document.getElementById('beatFrequency').value);
+            const volume = parseFloat(document.getElementById('volume').value) / 100;
+
+            // Update oscillator frequencies
+            oscillatorLeft.frequency.setValueAtTime(baseFreq, audioContext.currentTime);
+            oscillatorRight.frequency.setValueAtTime(baseFreq + beatFreq, audioContext.currentTime);
+            
+            // Update main volume
+            gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+
+            // Update noise
+            updateNoise();
+        }
+
+        function updateNoise() {
+            const noiseType = document.getElementById('noiseType').value;
+            const noiseVolume = parseFloat(document.getElementById('noiseVolume').value) / 100;
+
+            // Stop existing noise
+            if (noiseNode) {
+                noiseNode.stop();
+                noiseNode = null;
+            }
+
+            if (noiseType !== 'none' && isPlaying) {
+                // Create noise nodes
+                noiseNode = audioContext.createBufferSource();
+                noiseGain = audioContext.createGain();
+                noiseGain.gain.value = noiseVolume;
+
+                // Create and fill audio buffer
+                const bufferSize = audioContext.sampleRate * 2; // 2 seconds of audio
+                const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const data = noiseBuffer.getChannelData(0);
+
+                // Generate noise
+                let lastOut = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    
+                    if (noiseType === 'pink') {
+                        // Pink noise algorithm
+                        lastOut = (lastOut + (0.02 * white)) / 1.02;
+                        data[i] = lastOut * 3.5;
+                    } else if (noiseType === 'brown') {
+                        // Brown noise algorithm
+                        lastOut = (lastOut + (0.02 * white)) / 1.02;
+                        data[i] = lastOut * 3.5;
+                    } else {
+                        // White noise
+                        data[i] = white;
+                    }
+                }
+
+                noiseNode.buffer = noiseBuffer;
+                noiseNode.loop = true;
+                noiseNode.connect(noiseGain);
+                noiseGain.connect(audioContext.destination);
+                noiseNode.start();
+            }
+        }
+    </script>
+</body>
+</html>
