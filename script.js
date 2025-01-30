@@ -262,16 +262,7 @@ function updatePan() {
     const cyclePosition = (elapsed * PAN_LFO_FREQ) % 1;
     let panValue;
     
-    if (cyclePosition < 0.25) {
-        // First quarter: -1 to 0
-        panValue = -1 + (cyclePosition * 4);
-    } else if (cyclePosition < 0.75) {
-        // Middle half: 0 to 1 and back to 0
-        panValue = 1 - ((cyclePosition - 0.25) * 4);
-    } else {
-        // Last quarter: 0 to -1
-        panValue = ((cyclePosition - 0.75) * 4) - 1;
-    }
+    panValue = Math.sin(cyclePosition * Math.PI * 2) * 0.7 - 0.3;
     
     noisePanner.pan.setValueAtTime(panValue, currentTime);
     
