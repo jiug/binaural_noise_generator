@@ -5,6 +5,7 @@ let gainNode;
 let noiseNode;
 let noiseGain;
 let noisePanner;
+let noiseFilter;
 let panLFO;
 let isPlaying = false;
 let timerInterval;
@@ -38,6 +39,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // Add filter cutoff control with logarithmic scaling
+    const filterCutoff = document.getElementById('filterCutoff');
+    if (filterCutoff) {
+        filterCutoff.addEventListener('input', () => {
+            const minFreq = 20;
+            const maxFreq = 20000;
+            const sliderValue = parseInt(filterCutoff.value);
+            
+            // Convert slider value (0-100) to exponential frequency scale
+            const normalized = sliderValue / 100;
+            const frequency = minFreq * Math.pow(maxFreq / minFreq, normalized);
+            
+            document.getElementById('filterCutoffValue').textContent = Math.round(frequency) + ' Hz';
+            
+            if (noiseFilter) {
+                noiseFilter.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            }
+        });
+    }
 
     // Update displays
     ['baseFrequency', 'beatFrequency', 'volume', 'noiseVolume'].forEach(id => {
@@ -187,6 +208,23 @@ function updateNoise() {
         noiseNode = audioContext.createBufferSource();
         noiseGain = audioContext.createGain();
         noisePanner = audioContext.createStereoPanner();
+        noiseFilter = audioContext.createBiquadFilter();
+        
+        // Configure filter
+        noiseFilter.type = 'lowpass';
+        const filterCutoff = document.getElementById('filterCutoff');
+        if (filterCutoff) {
+            const minFreq = 20;
+            const maxFreq = 20000;
+            const sliderValue = parseInt(filterCutoff.value);
+            
+            // Convert slider value (0-100) to exponential frequency scale
+            const normalized = sliderValue / 100;
+            const frequency = minFreq * Math.pow(maxFreq / minFreq, normalized);
+            
+            noiseFilter.frequency.value = frequency;
+        }
+        noiseFilter.Q.value = 0.7; // Butterworth response
         
         noiseGain.gain.value = noiseVolume;
 
@@ -217,8 +255,9 @@ function updateNoise() {
         noiseNode.buffer = noiseBuffer;
         noiseNode.loop = true;
         
-        // Connect through panner
-        noiseNode.connect(noisePanner);
+        // Connect through filter and panner
+        noiseNode.connect(noiseFilter);
+        noiseFilter.connect(noisePanner);
         noisePanner.connect(noiseGain);
         noiseGain.connect(audioContext.destination);
         
