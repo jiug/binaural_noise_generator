@@ -31,7 +31,17 @@ h1 {
     color: var(--text-primary);
     font-size: 24px;
     font-weight: 500;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.tagline {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-style: italic;
     margin-bottom: 30px;
+    text-align: center;
 }
 
 .controls {
