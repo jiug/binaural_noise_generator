@@ -246,7 +246,8 @@ function stopPanLFO() {
         panLFO = null;
     }
     if (noisePanner) {
-        noisePanner.pan.value = 0;
+        // Smoothly transition to center over 0.5 seconds
+        noisePanner.pan.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
     }
 }
 
