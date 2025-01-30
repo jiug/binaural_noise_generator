@@ -4,22 +4,85 @@ let oscillatorRight;
 let gainNode;
 let noiseNode;
 let noiseGain;
+let noisePanner;
+let panLFO;
 let isPlaying = false;
 let timerInterval;
 let startTime;
+let lastPanUpdateTime = 0;
+const PAN_LFO_FREQ = 1/60; // 1/60 Hz = one cycle per minute
 
-// Initialize audio context on user interaction
-document.getElementById('startButton').addEventListener('click', () => {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    startTone();
-    startTimer();
-});
+// Wait for DOM to be fully loaded before accessing elements
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize audio context on user interaction
+    document.getElementById('startButton').addEventListener('click', () => {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        startTone();
+        startTimer();
+    });
 
-document.getElementById('stopButton').addEventListener('click', () => {
-    stopTone();
-    stopTimer();
+    document.getElementById('stopButton').addEventListener('click', () => {
+        stopTone();
+        stopTimer();
+    });
+
+    // Add pan toggle listener
+    document.getElementById('noisePanToggle').addEventListener('change', (e) => {
+        if (isPlaying && noiseNode) {
+            if (e.target.checked) {
+                startPanLFO();
+            } else {
+                stopPanLFO();
+            }
+        }
+    });
+
+    // Update displays
+    ['baseFrequency', 'beatFrequency', 'volume', 'noiseVolume'].forEach(id => {
+        const element = document.getElementById(id);
+        if (!element) {
+            console.error(`Element with id '${id}' not found`);
+            return;
+        }
+
+        let valueId;
+        switch(id) {
+            case 'baseFrequency':
+                valueId = 'baseFreqValue';
+                break;
+            case 'beatFrequency':
+                valueId = 'beatFreqValue';
+                break;
+            case 'volume':
+                valueId = 'volumeValue';
+                break;
+            case 'noiseVolume':
+                valueId = 'noiseVolumeValue';
+                break;
+        }
+
+        const valueDisplay = document.getElementById(valueId);
+        if (!valueDisplay) {
+            console.error(`Value display element with id '${valueId}' not found`);
+            return;
+        }
+        
+        // Update initial values
+        valueDisplay.textContent = id.includes('Volume') ? element.value + '%' : element.value + (id.includes('Freq') ? ' Hz' : '');
+        
+        // Add both input and change event listeners for real-time updates
+        ['input', 'change'].forEach(eventType => {
+            element.addEventListener(eventType, () => {
+                valueDisplay.textContent = id.includes('Volume') ? element.value + '%' : element.value + (id.includes('Freq') ? ' Hz' : '');
+                updateAudio();
+            });
+        });
+    });
+
+    // Noise type selection
+    document.getElementById('noiseType').addEventListener('change', updateAudio);
 });
 
 // Timer functions
@@ -43,26 +106,6 @@ function updateTimer() {
     document.getElementById('timer').textContent = 
         `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
-
-// Update displays
-['baseFrequency', 'beatFrequency', 'volume', 'noiseVolume'].forEach(id => {
-    const element = document.getElementById(id);
-    const valueDisplay = document.getElementById(id + 'Value');
-    
-    // Update initial values
-    valueDisplay.textContent = id.includes('Volume') ? element.value + '%' : element.value + (id.includes('Freq') ? ' Hz' : '');
-    
-    // Add both input and change event listeners for real-time updates
-    ['input', 'change'].forEach(eventType => {
-        element.addEventListener(eventType, () => {
-            valueDisplay.textContent = id.includes('Volume') ? element.value + '%' : element.value + (id.includes('Freq') ? ' Hz' : '');
-            updateAudio();
-        });
-    });
-});
-
-// Noise type selection
-document.getElementById('noiseType').addEventListener('change', updateAudio);
 
 function startTone() {
     if (isPlaying) return;
@@ -100,6 +143,7 @@ function stopTone() {
     if (!isPlaying) return;
     isPlaying = false;
 
+    stopPanLFO();
     oscillatorLeft?.stop();
     oscillatorRight?.stop();
     noiseNode?.stop();
@@ -107,6 +151,7 @@ function stopTone() {
     oscillatorLeft = null;
     oscillatorRight = null;
     noiseNode = null;
+    noisePanner = null;
 }
 
 function updateAudio() {
@@ -141,6 +186,8 @@ function updateNoise() {
         // Create noise nodes
         noiseNode = audioContext.createBufferSource();
         noiseGain = audioContext.createGain();
+        noisePanner = audioContext.createStereoPanner();
+        
         noiseGain.gain.value = noiseVolume;
 
         // Create and fill audio buffer
@@ -169,8 +216,63 @@ function updateNoise() {
 
         noiseNode.buffer = noiseBuffer;
         noiseNode.loop = true;
-        noiseNode.connect(noiseGain);
+        
+        // Connect through panner
+        noiseNode.connect(noisePanner);
+        noisePanner.connect(noiseGain);
         noiseGain.connect(audioContext.destination);
+        
         noiseNode.start();
+
+        // Start panning if enabled
+        if (document.getElementById('noisePanToggle').checked) {
+            startPanLFO();
+        }
     }
+}
+
+function startPanLFO() {
+    if (panLFO) {
+        cancelAnimationFrame(panLFO);
+    }
+    
+    lastPanUpdateTime = audioContext.currentTime;
+    updatePan();
+}
+
+function stopPanLFO() {
+    if (panLFO) {
+        cancelAnimationFrame(panLFO);
+        panLFO = null;
+    }
+    if (noisePanner) {
+        noisePanner.pan.value = 0;
+    }
+}
+
+function updatePan() {
+    if (!noisePanner || !isPlaying) return;
+
+    const currentTime = audioContext.currentTime;
+    const elapsed = currentTime - lastPanUpdateTime;
+    
+    // Calculate pan position using triangular LFO
+    // One complete cycle takes 60 seconds (1/60 Hz)
+    const cyclePosition = (elapsed * PAN_LFO_FREQ) % 1;
+    let panValue;
+    
+    if (cyclePosition < 0.25) {
+        // First quarter: -1 to 0
+        panValue = -1 + (cyclePosition * 4);
+    } else if (cyclePosition < 0.75) {
+        // Middle half: 0 to 1 and back to 0
+        panValue = 1 - ((cyclePosition - 0.25) * 4);
+    } else {
+        // Last quarter: 0 to -1
+        panValue = ((cyclePosition - 0.75) * 4) - 1;
+    }
+    
+    noisePanner.pan.setValueAtTime(panValue, currentTime);
+    
+    panLFO = requestAnimationFrame(updatePan);
 } 

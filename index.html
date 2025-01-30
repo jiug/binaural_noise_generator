@@ -160,6 +160,54 @@
             background-color: var(--bg-dark);
             color: var(--text-primary);
         }
+
+        /* Toggle switch styles */
+        .toggle-container {
+            margin-top: 10px;
+        }
+
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+            background-color: var(--slider-track);
+            border-radius: 12px;
+            transition: background-color 0.2s;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: var(--slider-thumb);
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+        }
+
+        input[type="checkbox"] {
+            display: none;
+        }
+
+        input[type="checkbox"]:checked + .toggle-switch {
+            background-color: var(--accent);
+        }
+
+        input[type="checkbox"]:checked + .toggle-switch::after {
+            transform: translateX(24px);
+        }
     </style>
 </head>
 <body>
@@ -181,33 +229,41 @@
                         Beat Frequency (Hz)
                         <span class="slider-value" id="beatFreqValue">10</span>
                     </label>
-                    <input type="range" id="beatFrequency" min="0" max="40" value="10" step="0.5">
+                    <input type="range" id="beatFrequency" min="0" max="80" value="40" step="0.5">
                 </div>
                 
                 <div class="slider-container">
                     <label>
                         Volume
-                        <span class="slider-value" id="volumeValue">50%</span>
+                        <span class="slider-value" id="volumeValue">20%</span>
                     </label>
-                    <input type="range" id="volume" min="0" max="100" value="50">
+                    <input type="range" id="volume" min="0" max="100" value="20">
                 </div>
             </div>
 
             <div class="control-group">
                 <label>Noise Type:</label>
                 <select id="noiseType">
-                    <option value="none">None</option>
-                    <option value="white">White Noise</option>
-                    <option value="pink">Pink Noise</option>
                     <option value="brown">Brown Noise</option>
+                    <option value="pink">Pink Noise</option>
+                    <option value="white">White Noise</option>
+                    <option value="none">None</option>
                 </select>
                 
                 <div class="slider-container">
                     <label>
                         Noise Volume
-                        <span class="slider-value" id="noiseVolumeValue">0%</span>
+                        <span class="slider-value" id="noiseVolumeValue">15%</span>
                     </label>
-                    <input type="range" id="noiseVolume" min="0" max="100" value="0">
+                    <input type="range" id="noiseVolume" min="0" max="100" value="15">
+                </div>
+
+                <div class="toggle-container">
+                    <label class="toggle-label">
+                        Auto Pan Noise
+                        <input type="checkbox" id="noisePanToggle">
+                        <span class="toggle-switch"></span>
+                    </label>
                 </div>
             </div>
 
